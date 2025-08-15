@@ -60,7 +60,7 @@ def run_pipeline_with_config(config: Config) -> Dict[str, Any]:
 
     # 2) Extract audio
     audio_path = os.path.join(work.audio_dir, "audio.wav")
-    logger.info("Extracting audio")
+    logger.info("=====Extracting audio=====")
     extract_audio(
         video_path, 
         audio_path, 
@@ -87,7 +87,7 @@ def run_pipeline_with_config(config: Config) -> Dict[str, Any]:
     # 4) Enhance transcript
     enhanced_segments = asr_json["segments"]
     if config.llm.enhancer.enabled:
-        logger.info("Enhancing transcript with LLM")
+        logger.info("=====Enhancing transcript with LLM=====")
         from enhancer.enhance_transcript import enhance_with_groq
         if config.llm.backend == "groq":
             enhanced_segments = enhance_with_groq(asr_json["segments"], config)
@@ -106,7 +106,7 @@ def run_pipeline_with_config(config: Config) -> Dict[str, Any]:
     translated_json_path = None
     
     if config.llm.translator.enabled and config.llm.translator.target_language:
-        logger.info(f"Translating transcript to {config.llm.translator.target_language}")
+        logger.info(f"=====Translating transcript to {config.llm.translator.target_language}=====")
         from translator.translate_transcript import translate_with_groq
         if config.llm.backend == "groq":
             translated_segments = translate_with_groq(enhanced_segments, config.llm.translator.target_language, config)
@@ -126,7 +126,7 @@ def run_pipeline_with_config(config: Config) -> Dict[str, Any]:
         final_srt_path = translated_srt_path
 
     # 6) Add subtitles
-    logger.info(f"Adding subtitles ({config.subtitles.mode})")
+    logger.info(f"=====Adding subtitles ({config.subtitles.mode})=====")
     from utils.ffmpeg_utils import add_subtitles_soft, burn_subtitles
     if config.subtitles.mode == "soft":
         final_video = os.path.join(work.subtitled_dir, "with_subtitles_soft.mp4")
