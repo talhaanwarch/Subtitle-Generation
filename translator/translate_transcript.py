@@ -44,7 +44,7 @@ def get_translation_system_prompt(target_lang: str) -> str:
     )
 
 
-def translate_with_groq(segments: List[Dict[str, Any]], target_lang: str, config: 'Config') -> List[Dict[str, Any]]:
+def translate_with_groq(segments: List[Dict[str, Any]], target_lang: str, config: Config) -> List[Dict[str, Any]]:
     """Translate segments using Groq API."""
     from openai import OpenAI
     

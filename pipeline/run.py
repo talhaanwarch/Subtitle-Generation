@@ -106,20 +106,28 @@ def run_pipeline_with_config(config: Config) -> Dict[str, Any]:
     translated_srt_path = None
     translated_json_path = None
     
-    if config.llm.translator.enabled and config.llm.translator.target_language:
-        logger.info(f"=====Translating transcript to {config.llm.translator.target_language}=====")
+    # Validate translation configuration
+    translation_enabled = config.llm.translator.enabled
+    target_language = config.llm.translator.target_language
+    
+    if translation_enabled and not target_language:
+        logger.warning("Translation is enabled but no target language is specified. Skipping translation.")
+    elif not translation_enabled and target_language:
+        logger.warning("Target language is specified but translation is disabled. Skipping translation.")
+    elif translation_enabled and target_language:
+        logger.info(f"=====Translating transcript to {target_language}=====")
         from translator.translate_transcript import translate_with_groq
         if config.llm.backend == "groq":
-            translated_segments = translate_with_groq(enhanced_segments, config.llm.translator.target_language, config)
+            translated_segments = translate_with_groq(enhanced_segments, target_language, config)
         else:
             logger.warning(f"Unknown LLM backend: {config.llm.backend}, skipping translation")
             translated_segments = enhanced_segments
         
         # Use language code for file naming
-        lang_code = config.llm.translator.target_language.lower().replace(" ", "_")
+        lang_code = target_language.lower().replace(" ", "_")
         translated_json_path = os.path.join(work.translated_dir, f"translated_{lang_code}.json")
         translated_srt_path = os.path.join(work.translated_dir, f"translated_{lang_code}.srt")
-        write_json(translated_json_path, {"segments": translated_segments, "target_language": config.llm.translator.target_language})
+        write_json(translated_json_path, {"segments": translated_segments, "target_language": target_language})
         write_srt(translated_srt_path, translated_segments)
         
         # Use translated subtitles for final video
@@ -147,11 +155,11 @@ def run_pipeline_with_config(config: Config) -> Dict[str, Any]:
     }
     
     # Add translation info if translation was performed
-    if config.llm.translator.enabled and config.llm.translator.target_language:
+    if translation_enabled and target_language:
         result.update({
             "translated_json": translated_json_path,
             "translated_srt": translated_srt_path,
-            "target_language": config.llm.translator.target_language,
+            "target_language": target_language,
         })
     
     return result

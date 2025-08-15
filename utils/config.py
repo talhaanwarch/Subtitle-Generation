@@ -152,9 +152,8 @@ class Config:
         if not (0.0 <= self.subtitles.box_opacity <= 1.0):
             raise ValueError(f"Box opacity must be between 0.0 and 1.0, got: {self.subtitles.box_opacity}")
         
-        # Set up translation based on target language
-        if self.llm.translator.target_language:
-            self.llm.translator.enabled = True
+        # Note: Translation is now explicitly controlled by the enabled flag
+        # Users must set both enabled=True and provide a target_language for translation to occur
 
 
 def _nested_dict_to_dataclass(cls, data: Dict[str, Any]) -> Any:
