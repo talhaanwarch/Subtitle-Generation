@@ -1,0 +1,6 @@
+yt-dlp
+ffmpeg-python
+python-dotenv
+openai
+rich
+pydantic

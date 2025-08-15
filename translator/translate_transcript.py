@@ -2,7 +2,10 @@ import os
 import sys
 import json
 import argparse
-from typing import Dict, Any, List
+from typing import Dict, Any, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from utils.config import Config
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -41,11 +44,16 @@ def get_translation_system_prompt(target_lang: str) -> str:
     )
 
 
-def translate_with_openai(segments: List[Dict[str, Any]], target_lang: str) -> List[Dict[str, Any]]:
-    """Translate segments using OpenAI-compatible API"""
+def translate_with_groq(segments: List[Dict[str, Any]], target_lang: str, config: 'Config') -> List[Dict[str, Any]]:
+    """Translate segments using Groq API."""
     from openai import OpenAI
+    
+    # Use the config for API key and model
+    api_key = config.api.groq_api_key or os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise ValueError("Groq API key is required. Set it in config or GROQ_API_KEY environment variable.")
 
-    client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=os.environ.get("GROQ_API_KEY"))
+    client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=api_key)
     system_prompt = get_translation_system_prompt(target_lang)
     
     messages = [
@@ -54,9 +62,9 @@ def translate_with_openai(segments: List[Dict[str, Any]], target_lang: str) -> L
     ]
 
     request_kwargs = {
-        "model": os.environ.get("LLM_MODEL_NAME"),
+        "model": config.llm.model,
         "messages": messages,
-        "temperature": 0.1,  # Slightly higher for more natural translations
+        "temperature": config.llm.translator.temperature,
     }
 
     try:
@@ -93,12 +101,22 @@ def translate_with_openai(segments: List[Dict[str, Any]], target_lang: str) -> L
     raise ValueError("Unexpected LLM response format")
 
 
+# Backward compatibility alias
+def translate_with_openai(segments: List[Dict[str, Any]], target_lang: str) -> List[Dict[str, Any]]:
+    """Backward compatibility wrapper for translate_with_groq."""
+    from utils.config import Config
+    config = Config()
+    config.llm.model = os.environ.get("LLM_MODEL_NAME", "llama3-8b-8192")
+    config.api.groq_api_key = os.environ.get("GROQ_API_KEY", "")
+    return translate_with_groq(segments, target_lang, config)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Translate subtitle segments to target language")
     parser.add_argument("--video-id", required=True, help="Video ID for output directory")
     parser.add_argument("--input-json", required=True, help="Path to input JSON with segments")
     parser.add_argument("--target-lang", required=True, help="Target language for translation (e.g., 'Spanish', 'French', 'German')")
-    parser.add_argument("--backend", default="openai", choices=["openai"], help="Translation backend")
+    parser.add_argument("--backend", default="groq", choices=["openai", "groq"], help="Translation backend")
     args = parser.parse_args()
 
     work = ensure_workdirs(args.video_id)
@@ -111,8 +129,8 @@ def main() -> None:
 
     logger.info(f"Translating {len(segments)} segments to {args.target_lang}")
 
-    if args.backend == "openai":
-        translated_segments = translate_with_openai(segments, args.target_lang)
+    if args.backend in ["openai", "groq"]:
+        translated_segments = translate_with_openai(segments, args.target_lang)  # Uses backward compatibility wrapper
     else:
         translated_segments = segments
 

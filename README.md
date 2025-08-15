@@ -1,139 +1,205 @@
 # YouTube Video Transcription & Subtitles Pipeline
 
-This project provides a modular pipeline to:
+A modular pipeline to download YouTube videos, transcribe audio, enhance transcripts with LLM, and add subtitles.
 
-1. Download a YouTube video
-2. Transcribe the audio with precise timestamps (choose Groq, OpenAI Whisper API, or local open-source Whisper)
-3. Improve the transcript using an LLM
-4. Add the transcript as subtitles (soft-embedded or burned-in)
+## Features
 
-## Structure
+- **Flexible ASR**: Groq API (cloud) or local Whisper models
+- **LLM Enhancement**: Improve grammar, punctuation, and capitalization
+- **Translation**: Translate to any target language
+- **Subtitle Options**: Soft-embedded or burned-in subtitles
+- **YAML Configuration**: Easy parameter management
 
-- `downloader/`: Download YouTube videos using `yt-dlp`
-- `transcriber/`: Transcribe audio using Groq, OpenAI Whisper, or local Whisper
-- `enhancer/`: Improve transcript with an LLM
-- `subtitles/`: Generate and attach subtitles to video
-- `pipeline/`: Orchestrated end-to-end runner
-- `utils/`: Shared helpers for logging, paths, ffmpeg, I/O, timecodes, config
+## System Requirements
 
+- **Tested on**: Ubuntu 24.04, Python 3.12
+- **FFmpeg**: Required for audio/video processing
 
-### FFmpeg Installation
+### Install FFmpeg
 
-**Ubuntu/Debian:**
 ```bash
+# Ubuntu/Debian
 sudo apt-get update && sudo apt-get install ffmpeg
 ```
 
-**macOS (using Homebrew):**
-```bash
-brew install ffmpeg
-```
+## Installation
 
-**Windows:**
-Download from [FFmpeg official website](https://ffmpeg.org/download.html) or use Chocolatey:
-```bash
-choco install ffmpeg
-```
-
-## Setup
-
-Activate your existing virtual environment and install dependencies:
+### 1. Clone and Setup Virtual Environment
 
 ```bash
+git clone <repository-url>
+cd Subtitle-Generation
+python3 -m venv venv
 source venv/bin/activate
+```
+
+### 2. Install Dependencies
+
+**For Cloud Processing (Groq API):**
+```bash
+pip install -r groq_requirements.txt
+```
+
+**For Local Processing (Whisper models):**
+```bash
 pip install -r requirements.txt
 ```
 
-Copy the example env and set required keys:
+### 3. Configuration
 
+Copy and edit the configuration file:
 ```bash
-cp env.sample .env
-# edit .env to add your keys
+cp config.sample.yaml config.yaml
+nano config.yaml  # Edit with your settings
 ```
 
-### Environment Configuration
+**Required settings:**
+- Set `video.url` to your YouTube URL
+- Set `api.groq_api_key` for Groq API usage
+- Configure `llm.enhancer.enabled` and `llm.translator.enabled` as needed
 
-The project supports multiple backends:
+## Quick Start
 
-- **Groq** (recommended): Fast and cost-effective for both ASR and LLM tasks
-- **Local**: Open-source models running locally
-
-Configure your `.env` file with the appropriate keys:
-
+### Basic Usage
 ```bash
-# For Groq (recommended)
-GROQ_API_KEY=gsk_your_groq_api_key_here
-LLM_MODEL_NAME=openai/gpt-oss-120b
-ASR_MODEL_NAME=distil-whisper-large-v3-en
-
-# For OpenAI (alternative)
-OPENAI_API_KEY=your_openai_api_key_here
+python main.py
 ```
 
-## Quickstart (End-to-End)
-
-### Using Groq (Recommended)
-
+### With Command Line Overrides
 ```bash
-# Example: run full pipeline with Groq for both ASR and LLM, with burned-in subtitles
-python pipeline/run.py \
-  --url "https://www.youtube.com/watch?v=s01QuLpjISc" \
-  --asr_backend groq \
-  --llm_backend groq \
-  --subtitle_mode burn
-  -- target-lang Urdu // optioanl
+python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --target-lang "Spanish"
 ```
 
-### Using OpenAI (to be tested)
+## Configuration Examples
 
-```bash
-# Example: run full pipeline with OpenAI Whisper + OpenAI LLM, and soft-embed subtitles
-python pipeline/run.py \
-  --url "https://www.youtube.com/watch?v=s01QuLpjISc" \
-  --asr_backend openai \
-  --llm_backend openai \
-  --subtitle_mode burn
+### Cloud Processing (Groq API)
+```yaml
+video:
+  url: "https://www.youtube.com/watch?v=s01QuLpjISc"
+
+asr:
+  backend: "groq"
+
+llm:
+  backend: "groq"
+  model: "llama3-8b-8192"
+  enhancer:
+    enabled: true
+  translator:
+    enabled: true
+    target_language: "Spanish"
+
+api:
+  groq_api_key: "gsk_your_api_key_here"
 ```
 
-### Using Local Whisper  (to be tested)
+### Local Processing (No API Required)
+```yaml
+video:
+  url: "https://www.youtube.com/watch?v=s01QuLpjISc"
 
-```bash
-python pipeline/run.py \
-  --url "https://www.youtube.com/watch?v=VIDEO_ID" \
-  --asr_backend local \
-  --whisper_model base \
-  --subtitle_mode soft
+asr:
+  backend: "local"
+  whisper_model: "medium"
+
+llm:
+  enhancer:
+    enabled: false
+  translator:
+    enabled: false
+
+subtitles:
+  mode: "soft"
 ```
 
-## Outputs
+### Enhancement Only (No Translation)
+```yaml
+llm:
+  enhancer:
+    enabled: true
+  translator:
+    enabled: false
+```
 
-Artifacts are organized under `outputs/<video_id>/`:
+## Command Line Options
 
-- `video/`: downloaded video files
-- `audio/`: extracted audio
-- `transcripts/`: raw ASR JSON and SRT
-- `enhanced/`: improved transcripts (JSON and SRT)
-- `subtitled/`: final video with subtitles (soft or burned-in)
+```bash
+python main.py [OPTIONS]
 
-## Per-Component Usage
+Options:
+  --config, -c        Configuration file path (default: config.yaml)
+  --url               YouTube URL (overrides config)
+  --asr-backend       ASR backend: local, groq
+  --whisper-model     Whisper model for local ASR
+  --llm-backend       LLM backend: groq
+  --subtitle-mode     Subtitle mode: soft, burn
+  --target-lang       Target language for translation
+  --box-opacity       Opacity for burned subtitles (0.0-1.0)
+```
 
-Each component has its own README:
+## Available Models
 
-- `downloader/README.md`
-- `transcriber/README.md`
-- `enhancer/README.md`
-- `subtitles/README.md`
-- `pipeline/README.md`
+### Groq ASR Models
+- `distil-whisper-large-v3-en` (recommended)
+- `whisper-large-v3`
 
-## Testing
+### Groq LLM Models
+- `llama3-8b-8192` (fast, good quality)
+- `llama3-70b-8192` (slower, higher quality)
+- `openai/gpt-oss-120b` (alternative)
+- `mixtral-8x7b-32768` (large context window)
 
-This project has been tested on:
-- **Ubuntu 24.04** 
-- **python 3.12** 
+### Local Whisper Models
+- `base` (fastest, lowest quality)
+- `small`, `medium`, `large`, `large-v2`, `large-v3` (increasing quality/size)
+
+## Project Structure
+
+```
+Subtitle-Generation/
+├── config.yaml              # Main configuration
+├── config.sample.yaml       # Configuration template
+├── main.py                  # Main entry point
+├── requirements.txt         # Dependencies for local processing
+├── groq_requirements.txt    # Dependencies for cloud processing
+├── downloader/              # YouTube video download
+├── transcriber/             # Audio transcription (local/Groq)
+├── enhancer/               # LLM transcript enhancement
+├── translator/             # LLM translation
+├── subtitles/              # Subtitle generation
+├── pipeline/               # End-to-end orchestration
+└── utils/                  # Shared utilities
+```
+
+## Output Structure
+
+Files are organized under `outputs/<video_id>/`:
+```
+outputs/VIDEO_ID/
+├── video/          # Downloaded video
+├── audio/          # Extracted audio
+├── transcripts/    # Raw ASR output (JSON/SRT)
+├── enhanced/       # Enhanced transcripts
+├── translated/     # Translated transcripts (if enabled)
+└── subtitled/      # Final video with subtitles
+```
+
+## Environment Variables
+
+Alternative to config file settings:
+```bash
+export GROQ_API_KEY="gsk_your_api_key_here"
+export LLM_MODEL_NAME="llama3-8b-8192"
+export ASR_MODEL_NAME="distil-whisper-large-v3-en"
+```
+
+## API Keys
+
+Get your Groq API key from: https://console.groq.com/keys
 
 ## Notes
 
-- Large models and API usage incur compute/API costs. Use chunking options for long videos.
-- Burned-in subtitles re-encode the video, which is slower than soft-embedding.
-- Local Whisper speed depends heavily on PyTorch/CUDA setup.
-- Groq provides fast inference with competitive pricing for both ASR and LLM tasks.
+- **Groq API**: Fast and cost-effective for both ASR and LLM tasks
+- **Local processing**: No API costs but requires more computational resources
+- **Burned subtitles**: Re-encode video (slower) vs soft subtitles (faster)
+- **Large models**: Higher quality but slower processing and API costs

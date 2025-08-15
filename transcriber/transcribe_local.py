@@ -20,7 +20,7 @@ def transcribe_with_whisper(audio_path: str, model_name: str = "base") -> Dict[s
     # Use faster-whisper on CPU for local transcription
     from faster_whisper import WhisperModel
 
-    model = WhisperModel(model_name, device="cpu", compute_type="int8")
+    model = WhisperModel(model_name, device="auto", compute_type="float16")
     segments_iter, info = model.transcribe(
         audio_path,
         beam_size=5,

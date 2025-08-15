@@ -2,7 +2,10 @@ import os
 import sys
 import json
 import argparse
-from typing import Dict, Any, List
+from typing import Dict, Any, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from utils.config import Config
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -39,10 +42,16 @@ SYSTEM_PROMPT = (
 )
 
 
-def enhance_with_openai(segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def enhance_with_groq(segments: List[Dict[str, Any]], config: 'Config') -> List[Dict[str, Any]]:
+    """Enhanced transcript segments using Groq API."""
     from openai import OpenAI
-
-    client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=os.environ.get("GROQ_API_KEY"))
+    
+    # Use the config for API key and model
+    api_key = config.api.groq_api_key or os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise ValueError("Groq API key is required. Set it in config or GROQ_API_KEY environment variable.")
+    
+    client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=api_key)
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": json.dumps(segments, ensure_ascii=False)},
@@ -50,9 +59,9 @@ def enhance_with_openai(segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
     request_kwargs = {
-        "model": os.environ.get("LLM_MODEL_NAME"),
+        "model": config.llm.model,
         "messages": messages,
-        "temperature": 0.0,
+        "temperature": config.llm.enhancer.temperature,
     }
 
     try:
@@ -88,19 +97,29 @@ def enhance_with_openai(segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     raise ValueError("Unexpected LLM response format")
 
 
+# Backward compatibility alias
+def enhance_with_openai(segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Backward compatibility wrapper for enhance_with_groq."""
+    from utils.config import Config
+    config = Config()
+    config.llm.model = os.environ.get("LLM_MODEL_NAME", "llama3-8b-8192")
+    config.api.groq_api_key = os.environ.get("GROQ_API_KEY", "")
+    return enhance_with_groq(segments, config)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--video-id", required=True)
     parser.add_argument("--input-json", required=True, help="path to ASR json with segments")
-    parser.add_argument("--backend", default="openai", choices=["openai"])
+    parser.add_argument("--backend", default="groq", choices=["openai", "groq"])
     args = parser.parse_args()
 
     work = ensure_workdirs(args.video_id)
     raw = read_json(args.input_json)
     segments = raw.get("segments", [])
 
-    if args.backend == "openai":
-        enhanced_segments = enhance_with_openai(segments)
+    if args.backend in ["openai", "groq"]:
+        enhanced_segments = enhance_with_openai(segments)  # Uses backward compatibility wrapper
     else:
         enhanced_segments = segments
 

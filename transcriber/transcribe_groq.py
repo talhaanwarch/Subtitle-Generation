@@ -14,18 +14,24 @@ if BASE_DIR not in sys.path:
 from utils.paths import ensure_workdirs
 from utils.logging_utils import get_logger
 from utils.io_utils import write_json, write_srt
+from utils.config import Config
 
 logger = get_logger(__name__)
 
 
-def transcribe_with_openai(audio_path: str) -> Dict[str, Any]:
+def transcribe_with_groq(audio_path: str, config: Config) -> Dict[str, Any]:
     from openai import OpenAI
 
-    client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=os.environ.get("GROQ_API_KEY"))
+    # Use the config for API key and model
+    api_key = config.api.groq_api_key or os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise ValueError("Groq API key is required. Set it in config or GROQ_API_KEY environment variable.")
+    
+    client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=api_key)
     with open(audio_path, "rb") as f:
         # Attempt to use verbose_json to get segments when supported
         transcript = client.audio.transcriptions.create(
-            model=os.environ.get("ASR_MODEL_NAME"),
+            model=config.asr.groq_model,
             file=f,
             response_format="verbose_json",
             temperature=0.0,
@@ -53,11 +59,17 @@ def main() -> None:
     args = parser.parse_args()
 
     work = ensure_workdirs(args.video_id)
-    logger.info(f"Transcribing (OpenAI) {args.audio} → {work.transcripts_dir}")
+    logger.info(f"Transcribing (Groq) {args.audio} → {work.transcripts_dir}")
 
-    data = transcribe_with_openai(args.audio)
-    json_path = os.path.join(work.transcripts_dir, "asr_openai.json")
-    srt_path = os.path.join(work.transcripts_dir, "asr_openai.srt")
+    # Create a basic config for standalone usage
+    from utils.config import Config
+    config = Config()
+    config.asr.groq_model = os.environ.get("ASR_MODEL_NAME", "distil-whisper-large-v3-en")
+    config.api.groq_api_key = os.environ.get("GROQ_API_KEY", "")
+
+    data = transcribe_with_groq(args.audio, config)
+    json_path = os.path.join(work.transcripts_dir, "asr_groq.json")
+    srt_path = os.path.join(work.transcripts_dir, "asr_groq.srt")
     write_json(json_path, data)
     write_srt(srt_path, data["segments"]) 
     logger.info(f"Saved: {json_path}\nSaved: {srt_path}")
