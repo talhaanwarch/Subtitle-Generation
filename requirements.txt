@@ -1,0 +1,8 @@
+yt-dlp
+ffmpeg-python
+python-dotenv
+openai
+# openai-whisper==20231117
+# faster-whisper==1.0.3
+pydantic
+richdo 
