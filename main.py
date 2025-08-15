@@ -3,7 +3,7 @@ import os
 import sys
 import argparse
 from pathlib import Path
-
+import traceback
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -62,7 +62,7 @@ def main() -> None:
         result = run_pipeline_with_config(config)
         print(result)
     except Exception as e:
-        print(f"Error running pipeline: {e}")
+        print(f"Error running pipeline: {e},traceback {traceback.format_exc()}")
         sys.exit(1)
 
 

@@ -4,11 +4,11 @@
 # Video Settings
 video:
   # YouTube URL to process (can be overridden via command line)
-  url: "https://www.youtube.com/watch?v=3PI8ugmLxcc"
+  url: "https://www.youtube.com/watch?v=AC72cYeMBiM"
   # Directory for temporary downloads
   tmp_downloads_dir: "tmp_downloads"
   # Video input language (auto-detected if not specified)
-  input_language: "ur"
+  input_language: "tr"
 
 # ASR (Automatic Speech Recognition) Settings
 asr:
@@ -31,12 +31,12 @@ llm:
     # Enable transcript enhancement (grammar, punctuation, capitalization)
     enabled: true
     # Temperature for enhancement (0.0-1.0, lower = more deterministic)
-    temperature: 0.0
+    temperature: 0.1
   
   # Translation settings
   translator:
     # Enable translation
-    enabled: false
+    enabled: true
     # Target language for translation (e.g., "Spanish", "French", "German", "Chinese")
     target_language: "urdu"
     # Temperature for translation (0.0-1.0, slightly higher for more natural translations)

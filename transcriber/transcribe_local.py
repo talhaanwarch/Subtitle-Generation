@@ -23,6 +23,7 @@ def transcribe_with_whisper(audio_path: str, config:Config) -> Dict[str, Any]:
     model_name=config.asr.whisper_model
     language=config.video.input_language
     model = WhisperModel(model_name, device="auto", compute_type="float16")
+
     segments_iter, info = model.transcribe(
         audio_path,
         language=language,

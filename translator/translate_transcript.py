@@ -4,8 +4,7 @@ import json
 import argparse
 from typing import Dict, Any, List, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from utils.config import Config
+from utils.config import Config
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -104,7 +103,6 @@ def translate_with_groq(segments: List[Dict[str, Any]], target_lang: str, config
 # Backward compatibility alias
 def translate_with_openai(segments: List[Dict[str, Any]], target_lang: str) -> List[Dict[str, Any]]:
     """Backward compatibility wrapper for translate_with_groq."""
-    from utils.config import Config
     config = Config()
     config.llm.model = os.environ.get("LLM_MODEL_NAME", "llama3-8b-8192")
     config.api.groq_api_key = os.environ.get("GROQ_API_KEY", "")
