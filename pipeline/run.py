@@ -18,7 +18,7 @@ from downloader.download_youtube import download_youtube
 logger = get_logger(__name__)
 
 
-def run_pipeline(url: str, asr_backend: str = "local", whisper_model: str = "base", llm_backend: str = "openai", subtitle_mode: str = "soft", target_lang: str = None) -> dict:
+def run_pipeline(url: str, asr_backend: str = "local", whisper_model: str = "base", llm_backend: str = "openai", subtitle_mode: str = "soft", target_lang: str = None, box_opacity: float = 0.6) -> dict:
 	# 1) Download video (or use existing if already downloaded)
 	tmp_root = os.path.join(BASE_DIR, "tmp_downloads")
 	os.makedirs(tmp_root, exist_ok=True)
@@ -109,7 +109,7 @@ def run_pipeline(url: str, asr_backend: str = "local", whisper_model: str = "bas
 		add_subtitles_soft(video_path, final_srt_path, final_video)
 	else:
 		final_video = os.path.join(work.subtitled_dir, "with_subtitles_burned.mp4")
-		burn_subtitles(video_path, final_srt_path, final_video)
+		burn_subtitles(video_path, final_srt_path, final_video, box_opacity)
 
 	result = {
 		"video_id": video_id,
@@ -140,6 +140,7 @@ def main() -> None:
 	parser.add_argument("--llm_backend", choices=["openai"], default="openai")
 	parser.add_argument("--subtitle_mode", choices=["soft", "burn"], default="soft")
 	parser.add_argument("--target-lang", help="Target language for translation (e.g., 'Spanish', 'French', 'German')")
+	parser.add_argument("--box-opacity", type=float, default=0.6, help="Opacity of subtitle background box (0.0-1.0, default 0.6)")
 	args = parser.parse_args()
 
 	result = run_pipeline(
@@ -149,6 +150,7 @@ def main() -> None:
 		llm_backend=args.llm_backend,
 		subtitle_mode=args.subtitle_mode,
 		target_lang=getattr(args, 'target_lang'),
+		box_opacity=getattr(args, 'box_opacity'),
 	)
 	logger.info(json.dumps(result, indent=2))
 

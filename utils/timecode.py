@@ -18,4 +18,22 @@ def srt_time_to_seconds(time_str: str) -> float:
     # HH:MM:SS,mmm
     hh, mm, rest = time_str.split(":", 2)
     ss, ms = rest.split(",")
-    return int(hh) * 3600 + int(mm) * 60 + int(ss) + int(ms) / 1000.0 
+    return int(hh) * 3600 + int(mm) * 60 + int(ss) + int(ms) / 1000.0
+
+
+def srt_time_to_ass_time(srt_time: str) -> str:
+    """Convert SRT time format (HH:MM:SS,mmm) to ASS time format (H:MM:SS.cc)"""
+    # Remove any whitespace
+    srt_time = srt_time.strip()
+    
+    # Parse SRT format: HH:MM:SS,mmm
+    hh, mm, rest = srt_time.split(":", 2)
+    ss, ms = rest.split(",")
+    
+    # Convert to ASS format: H:MM:SS.cc (centiseconds, not milliseconds)
+    hours = int(hh)
+    minutes = int(mm)
+    seconds = int(ss)
+    centiseconds = int(ms) // 10  # Convert milliseconds to centiseconds
+    
+    return f"{hours}:{minutes:02d}:{seconds:02d}.{centiseconds:02d}" 

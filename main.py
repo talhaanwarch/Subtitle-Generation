@@ -20,6 +20,7 @@ def main() -> None:
 	parser.add_argument("--llm_backend", choices=["openai"], default="openai")
 	parser.add_argument("--subtitle_mode", choices=["soft", "burn"], default="soft")
 	parser.add_argument("--target-lang", help="Target language for translation (e.g., 'Spanish', 'French', 'German')")
+	parser.add_argument("--box-opacity", type=float, default=0.6, help="Opacity of subtitle background box (0.0-1.0, default 0.6)")
 	args = parser.parse_args()
 
 	result = run_pipeline(
@@ -29,6 +30,7 @@ def main() -> None:
 		llm_backend=args.llm_backend,
 		subtitle_mode=args.subtitle_mode,
 		target_lang=getattr(args, 'target_lang'),
+		box_opacity=getattr(args, 'box_opacity'),
 	)
 	print(result)
 

@@ -20,6 +20,8 @@ def main() -> None:
     parser.add_argument("--input-video", required=True)
     parser.add_argument("--srt", required=True)
     parser.add_argument("--mode", choices=["soft", "burn"], default="soft")
+    parser.add_argument("--box-opacity", type=float, default=0.6,
+                        help="Opacity of subtitle background box (0.0-1.0, default 0.6)")
     args = parser.parse_args()
 
     work = ensure_workdirs(args.video_id)
@@ -29,7 +31,7 @@ def main() -> None:
         add_subtitles_soft(args.input_video, args.srt, out_path)
     else:
         out_path = os.path.join(work.subtitled_dir, "with_subtitles_burned.mp4")
-        burn_subtitles(args.input_video, args.srt, out_path)
+        burn_subtitles(args.input_video, args.srt, out_path, args.box_opacity)
 
     logger.info(f"Saved: {out_path}")
 
