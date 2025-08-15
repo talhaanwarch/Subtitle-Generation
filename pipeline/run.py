@@ -71,8 +71,9 @@ def run_pipeline_with_config(config: Config) -> Dict[str, Any]:
     # 3) Transcribe
     if config.asr.backend == "local":
         from transcriber.transcribe_local import transcribe_with_whisper
-        asr_json = transcribe_with_whisper(audio_path, config.asr.whisper_model)
+        asr_json = transcribe_with_whisper(audio_path, config)
         asr_json_path = os.path.join(work.transcripts_dir, "asr_local.json")
+
         write_json(asr_json_path, asr_json)
         write_srt(os.path.join(work.transcripts_dir, "asr_local.srt"), asr_json["segments"])
     elif config.asr.backend == "groq":
@@ -156,8 +157,9 @@ def run_pipeline_with_config(config: Config) -> Dict[str, Any]:
     return result
 
 
-def run_pipeline(url: str, asr_backend: str = "local", whisper_model: str = "base", llm_backend: str = "groq", subtitle_mode: str = "soft", target_lang: str = None, box_opacity: float = 0.6) -> dict:
+def run_pipeline(url: str, asr_backend: str = "local", whisper_model: str = "base", llm_backend: str = "groq", subtitle_mode: str = "soft", target_lang: str = None, box_opacity: float = 0.6, input_language: str = None) -> dict:
 	# 1) Download video (or use existing if already downloaded)
+	logger.info("1. Fetching video.....")
 	tmp_root = os.path.join(BASE_DIR, "tmp_downloads")
 	os.makedirs(tmp_root, exist_ok=True)
 	logger.info(f"Checking/downloading video: {url}")
@@ -184,14 +186,14 @@ def run_pipeline(url: str, asr_backend: str = "local", whisper_model: str = "bas
 		write_json(metadata_path, {"video_id": video_id, "title": title})
 
 	# 2) Extract audio
+	logger.info("2. Transcibing to audio....")
 	audio_path = os.path.join(work.audio_dir, "audio.wav")
-	logger.info("Extracting audio")
 	extract_audio(video_path, audio_path, sample_rate_hz=16000, mono=True)
 
 	# 3) Transcribe
 	if asr_backend == "local":
 		from transcriber.transcribe_local import transcribe_with_whisper
-		asr_json = transcribe_with_whisper(audio_path, whisper_model)
+		asr_json = transcribe_with_whisper(audio_path, whisper_model, input_language)
 		asr_json_path = os.path.join(work.transcripts_dir, "asr_local.json")
 		write_json(asr_json_path, asr_json)
 		write_srt(os.path.join(work.transcripts_dir, "asr_local.srt"), asr_json["segments"])
@@ -208,7 +210,7 @@ def run_pipeline(url: str, asr_backend: str = "local", whisper_model: str = "bas
 		write_srt(os.path.join(work.transcripts_dir, "asr_groq.srt"), asr_json["segments"])
 
 	# 4) Enhance transcript
-	logger.info("Enhancing transcript with LLM")
+	logger.info("3. Enhancing transcript with LLM")
 	from enhancer.enhance_transcript import enhance_with_groq
 	if llm_backend == "groq":
 		# Create a minimal config for backward compatibility
@@ -228,7 +230,7 @@ def run_pipeline(url: str, asr_backend: str = "local", whisper_model: str = "bas
 	translated_json_path = None
 	
 	if target_lang:
-		logger.info(f"Translating transcript to {target_lang}")
+		logger.info(f"4. Translating transcript to {target_lang}")
 		from translator.translate_transcript import translate_with_groq
 		if llm_backend == "groq":
 			translated_segments = translate_with_groq(enhanced_segments, target_lang, temp_config)
@@ -247,7 +249,7 @@ def run_pipeline(url: str, asr_backend: str = "local", whisper_model: str = "bas
 		final_srt_path = translated_srt_path
 
 	# 6) Add subtitles
-	logger.info(f"Adding subtitles ({subtitle_mode})")
+	logger.info(f"5. Adding subtitles to video ({subtitle_mode})")
 	from utils.ffmpeg_utils import add_subtitles_soft, burn_subtitles
 	if subtitle_mode == "soft":
 		final_video = os.path.join(work.subtitled_dir, "with_subtitles_soft.mp4")
@@ -286,6 +288,7 @@ def main() -> None:
 	parser.add_argument("--llm-backend", choices=["groq"], help="LLM backend (overrides config)")
 	parser.add_argument("--subtitle-mode", choices=["soft", "burn"], help="Subtitle mode (overrides config)")
 	parser.add_argument("--target-lang", help="Target language for translation (overrides config)")
+	parser.add_argument("--input-lang", help="Input language for ASR (overrides config)")
 	parser.add_argument("--box-opacity", type=float, help="Opacity of subtitle background box (overrides config)")
 	args = parser.parse_args()
 
@@ -311,6 +314,8 @@ def main() -> None:
 		if getattr(args, 'target_lang'):
 			config.llm.translator.target_language = getattr(args, 'target_lang')
 			config.llm.translator.enabled = True
+		if getattr(args, 'input_lang'):
+			config.video.input_language = getattr(args, 'input_lang')
 		if getattr(args, 'box_opacity') is not None:
 			config.subtitles.box_opacity = getattr(args, 'box_opacity')
 		
@@ -333,6 +338,7 @@ def main() -> None:
 			subtitle_mode=getattr(args, 'subtitle_mode', 'soft'),
 			target_lang=getattr(args, 'target_lang'),
 			box_opacity=getattr(args, 'box_opacity', 0.6),
+			input_language=getattr(args, 'input_lang'),
 		)
 	
 	logger.info(json.dumps(result, indent=2))

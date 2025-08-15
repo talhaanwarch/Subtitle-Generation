@@ -28,13 +28,15 @@ def transcribe_with_groq(audio_path: str, config: Config) -> Dict[str, Any]:
         raise ValueError("Groq API key is required. Set it in config or GROQ_API_KEY environment variable.")
     
     client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=api_key)
+    logger.info("language groq whisper",config.video.input_language)
     with open(audio_path, "rb") as f:
         # Attempt to use verbose_json to get segments when supported
         transcript = client.audio.transcriptions.create(
             model=config.asr.groq_model,
             file=f,
             response_format="verbose_json",
-            temperature=0.0,
+            temperature=0.1,
+            language=config.video.input_language
         )
     segments: List[Dict[str, Any]] = []
     # Map to our schema if segments are present
@@ -61,11 +63,13 @@ def main() -> None:
     work = ensure_workdirs(args.video_id)
     logger.info(f"Transcribing (Groq) {args.audio} → {work.transcripts_dir}")
 
-    # Create a basic config for standalone usage
-    from utils.config import Config
-    config = Config()
-    config.asr.groq_model = os.environ.get("ASR_MODEL_NAME", "distil-whisper-large-v3-en")
-    config.api.groq_api_key = os.environ.get("GROQ_API_KEY", "")
+    # Load the actual configuration from config.yaml
+    from utils.config import load_config
+    config = load_config()
+    
+  
+    if os.environ.get("GROQ_API_KEY"):
+        config.api.groq_api_key = os.environ.get("GROQ_API_KEY")
 
     data = transcribe_with_groq(args.audio, config)
     json_path = os.path.join(work.transcripts_dir, "asr_groq.json")
@@ -77,3 +81,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main() 
+
+#python transcriber/transcribe_groq.py --audio outputs/3PI8ugmLxcc/audio/audio.wav --video-id 3PI8ugmLxcc
