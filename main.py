@@ -19,6 +19,7 @@ def main() -> None:
 	parser.add_argument("--whisper_model", default=os.environ.get("DEFAULT_WHISPER_MODEL", "base"))
 	parser.add_argument("--llm_backend", choices=["openai"], default="openai")
 	parser.add_argument("--subtitle_mode", choices=["soft", "burn"], default="soft")
+	parser.add_argument("--target-lang", help="Target language for translation (e.g., 'Spanish', 'French', 'German')")
 	args = parser.parse_args()
 
 	result = run_pipeline(
@@ -27,6 +28,7 @@ def main() -> None:
 		whisper_model=args.whisper_model,
 		llm_backend=args.llm_backend,
 		subtitle_mode=args.subtitle_mode,
+		target_lang=getattr(args, 'target_lang'),
 	)
 	print(result)
 

@@ -18,25 +18,32 @@ from downloader.download_youtube import download_youtube
 logger = get_logger(__name__)
 
 
-def run_pipeline(url: str, asr_backend: str = "local", whisper_model: str = "base", llm_backend: str = "openai", subtitle_mode: str = "soft") -> dict:
-	# 1) Download video
+def run_pipeline(url: str, asr_backend: str = "local", whisper_model: str = "base", llm_backend: str = "openai", subtitle_mode: str = "soft", target_lang: str = None) -> dict:
+	# 1) Download video (or use existing if already downloaded)
 	tmp_root = os.path.join(BASE_DIR, "tmp_downloads")
 	os.makedirs(tmp_root, exist_ok=True)
-	logger.info(f"Downloading video: {url}")
+	logger.info(f"Checking/downloading video: {url}")
 	dl_info = download_youtube(url, tmp_root)
 	video_id = dl_info["video_id"]
 	title = dl_info.get("title")
 	video_path = dl_info["video_path"]
 	work = ensure_workdirs(video_id)
 
-	# relocate video into per-video directory
+	# Check if video is already in the correct location
 	dst_video_path = os.path.join(work.video_dir, os.path.basename(video_path))
 	if os.path.abspath(video_path) != os.path.abspath(dst_video_path):
-		shutil.move(video_path, dst_video_path)
+		# Video is in tmp_downloads, need to move it to the video directory
+		if os.path.exists(video_path):
+			shutil.move(video_path, dst_video_path)
 		video_path = dst_video_path
+	else:
+		# Video is already in the correct location (existing video)
+		logger.info(f"Using existing video at: {video_path}")
 
-	# save metadata
-	write_json(os.path.join(work.root, "metadata.json"), {"video_id": video_id, "title": title})
+	# save/update metadata
+	metadata_path = os.path.join(work.root, "metadata.json")
+	if not os.path.exists(metadata_path) or title:
+		write_json(metadata_path, {"video_id": video_id, "title": title})
 
 	# 2) Extract audio
 	audio_path = os.path.join(work.audio_dir, "audio.wav")
@@ -69,17 +76,42 @@ def run_pipeline(url: str, asr_backend: str = "local", whisper_model: str = "bas
 	enhanced_srt_path = os.path.join(work.enhanced_dir, "enhanced.srt")
 	write_srt(enhanced_srt_path, enhanced_segments)
 
-	# 5) Add subtitles
+	# 5) Translate transcript (optional)
+	final_segments = enhanced_segments
+	final_srt_path = enhanced_srt_path
+	translated_srt_path = None
+	translated_json_path = None
+	
+	if target_lang:
+		logger.info(f"Translating transcript to {target_lang}")
+		from translator.translate_transcript import translate_with_openai
+		if llm_backend == "openai":
+			translated_segments = translate_with_openai(enhanced_segments, target_lang)
+		else:
+			translated_segments = enhanced_segments
+		
+		# Use language code for file naming
+		lang_code = target_lang.lower().replace(" ", "_")
+		translated_json_path = os.path.join(work.translated_dir, f"translated_{lang_code}.json")
+		translated_srt_path = os.path.join(work.translated_dir, f"translated_{lang_code}.srt")
+		write_json(translated_json_path, {"segments": translated_segments, "target_language": target_lang})
+		write_srt(translated_srt_path, translated_segments)
+		
+		# Use translated subtitles for final video
+		final_segments = translated_segments
+		final_srt_path = translated_srt_path
+
+	# 6) Add subtitles
 	logger.info(f"Adding subtitles ({subtitle_mode})")
 	from utils.ffmpeg_utils import add_subtitles_soft, burn_subtitles
 	if subtitle_mode == "soft":
 		final_video = os.path.join(work.subtitled_dir, "with_subtitles_soft.mp4")
-		add_subtitles_soft(video_path, enhanced_srt_path, final_video)
+		add_subtitles_soft(video_path, final_srt_path, final_video)
 	else:
 		final_video = os.path.join(work.subtitled_dir, "with_subtitles_burned.mp4")
-		burn_subtitles(video_path, enhanced_srt_path, final_video)
+		burn_subtitles(video_path, final_srt_path, final_video)
 
-	return {
+	result = {
 		"video_id": video_id,
 		"video": video_path,
 		"audio": audio_path,
@@ -88,6 +120,16 @@ def run_pipeline(url: str, asr_backend: str = "local", whisper_model: str = "bas
 		"enhanced_srt": enhanced_srt_path,
 		"final_video": final_video,
 	}
+	
+	# Add translation info if translation was performed
+	if target_lang:
+		result.update({
+			"translated_json": translated_json_path,
+			"translated_srt": translated_srt_path,
+			"target_language": target_lang,
+		})
+	
+	return result
 
 
 def main() -> None:
@@ -97,6 +139,7 @@ def main() -> None:
 	parser.add_argument("--whisper_model", default=os.environ.get("DEFAULT_WHISPER_MODEL", "base"))
 	parser.add_argument("--llm_backend", choices=["openai"], default="openai")
 	parser.add_argument("--subtitle_mode", choices=["soft", "burn"], default="soft")
+	parser.add_argument("--target-lang", help="Target language for translation (e.g., 'Spanish', 'French', 'German')")
 	args = parser.parse_args()
 
 	result = run_pipeline(
@@ -105,6 +148,7 @@ def main() -> None:
 		whisper_model=args.whisper_model,
 		llm_backend=args.llm_backend,
 		subtitle_mode=args.subtitle_mode,
+		target_lang=getattr(args, 'target_lang'),
 	)
 	logger.info(json.dumps(result, indent=2))
 

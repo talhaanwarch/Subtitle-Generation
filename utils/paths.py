@@ -19,6 +19,7 @@ class WorkDirs:
     audio_dir: str
     transcripts_dir: str
     enhanced_dir: str
+    translated_dir: str
     subtitled_dir: str
 
 
@@ -28,9 +29,10 @@ def ensure_workdirs(video_id: str) -> WorkDirs:
     audio_dir = os.path.join(root, "audio")
     transcripts_dir = os.path.join(root, "transcripts")
     enhanced_dir = os.path.join(root, "enhanced")
+    translated_dir = os.path.join(root, "translated")
     subtitled_dir = os.path.join(root, "subtitled")
 
-    for path in [root, video_dir, audio_dir, transcripts_dir, enhanced_dir, subtitled_dir]:
+    for path in [root, video_dir, audio_dir, transcripts_dir, enhanced_dir, translated_dir, subtitled_dir]:
         os.makedirs(path, exist_ok=True)
 
     return WorkDirs(
@@ -39,6 +41,7 @@ def ensure_workdirs(video_id: str) -> WorkDirs:
         audio_dir=audio_dir,
         transcripts_dir=transcripts_dir,
         enhanced_dir=enhanced_dir,
+        translated_dir=translated_dir,
         subtitled_dir=subtitled_dir,
     )
 

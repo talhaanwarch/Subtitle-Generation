@@ -81,6 +81,7 @@ python pipeline/run.py \
   --asr_backend groq \
   --llm_backend groq \
   --subtitle_mode burn
+  -- target-lang Urdu // optioanl
 ```
 
 ### Using OpenAI (to be tested)
