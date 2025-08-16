@@ -73,7 +73,6 @@ class AudioSeparationConfig:
     auto_select_best: bool = False
     stem_type: str = "vocals"
     output_format: str = "WAV"
-    use_separated_for_transcription: bool = True
 
 
 @dataclass

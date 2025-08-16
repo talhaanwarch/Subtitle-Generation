@@ -66,8 +66,7 @@ processing:
       stem_type: "vocals"
       # Output format for separated files
       output_format: "WAV"
-      # Use separated vocals for transcription
-      use_separated_for_transcription: true
+
 ```
 
 ### Using Environment Variables (Legacy Mode)

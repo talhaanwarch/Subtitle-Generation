@@ -25,45 +25,11 @@ except ImportError:
 
 from utils.logging_utils import get_logger
 from utils.paths import ensure_workdirs
+from utils.check_gpu import check_gpu_availability
 
 logger = get_logger(__name__)
 
 
-def check_gpu_availability() -> bool:
-    """
-    Check if GPU is available using both PyTorch and ONNX Runtime.
-    
-    Returns:
-        True if GPU is available, False otherwise
-    """
-    # Try PyTorch first
-    try:
-        import torch
-        if torch.cuda.is_available():
-            logger.info(f"GPU detected via PyTorch: {torch.cuda.get_device_name(0)}")
-            return True
-    except ImportError:
-        logger.debug("PyTorch not available for GPU detection")
-    except Exception as e:
-        logger.debug(f"PyTorch GPU detection failed: {e}")
-    
-    # Try ONNX Runtime as fallback
-    try:
-        import onnxruntime as ort
-        providers = ort.get_available_providers()
-        if 'CUDAExecutionProvider' in providers:
-            logger.info("GPU detected via ONNX Runtime CUDA provider")
-            return True
-        elif 'ROCMExecutionProvider' in providers:
-            logger.info("GPU detected via ONNX Runtime ROCm provider")
-            return True
-    except ImportError:
-        logger.debug("ONNX Runtime not available for GPU detection")
-    except Exception as e:
-        logger.debug(f"ONNX Runtime GPU detection failed: {e}")
-    
-    logger.info("No GPU detected, will use CPU")
-    return False
 
 
 class AudioSeparator:
@@ -371,20 +337,32 @@ class AudioSeparator:
             logger.info(f"Audio separation completed. Output files: {output_files}")
             
             # The separator returns a list of file paths, so we need to map them to stem types
-            # Based on the output_names we provided, we can infer the stem types
+            # We need to examine the actual filenames to determine which is which
             result = {}
             if isinstance(output_files, list):
-                # Map the output files to their corresponding stem types
-                for i, file_path in enumerate(output_files):
-                    if i < len(output_names):
-                        stem_type = list(output_names.keys())[i]
-                        result[stem_type.lower()] = file_path
+                # Map the output files based on their actual filenames, not order
+                for file_path in output_files:
+                    filename = os.path.basename(file_path)
+                    # Ensure we return absolute paths
+                    if not os.path.isabs(file_path):
+                        file_path = os.path.join(self.output_dir, file_path)
+                    
+                    # Determine stem type based on filename
+                    if "vocal" in filename.lower():
+                        result["vocals"] = file_path
+                    elif "instrumental" in filename.lower():
+                        result["instrumental"] = file_path
                     else:
-                        # Fallback naming if we have more files than expected
-                        result[f"stem_{i}"] = file_path
+                        # Fallback: try to match with output_names
+                        for i, stem_type in enumerate(output_names.keys()):
+                            if i < len(output_files):
+                                result[stem_type.lower()] = file_path
+                                break
             elif isinstance(output_files, dict):
-                # If it's already a dictionary, use it directly
-                result = {k.lower(): v for k, v in output_files.items()}
+                # If it's already a dictionary, ensure absolute paths and normalize keys
+                for k, v in output_files.items():
+                    abs_path = v if os.path.isabs(v) else os.path.join(self.output_dir, v)
+                    result[k.lower()] = abs_path
             else:
                 # Fallback for unexpected return types
                 result = {"output": str(output_files)}

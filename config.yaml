@@ -4,55 +4,12 @@
 # Video Settings
 video:
   # YouTube URL to process (can be overridden via command line)
-  url: "https://www.youtube.com/watch?v=AC72cYeMBiM"
+  url: "https://www.youtube.com/watch?v=84q5krIwQTc"
   # Directory for temporary downloads
   tmp_downloads_dir: "tmp_downloads"
   # Video input language (auto-detected if not specified)
-  input_language: "tr"
+  input_language: "ur"
 
-# ASR (Automatic Speech Recognition) Settings
-asr:
-  # Backend: "local" (faster-whisper) or "groq" (Groq API)
-  backend: "local"  # Changed default to groq since user is using it
-  # Model for local transcription (base, small, medium, large, large-v2, large-v3)
-  whisper_model: "large-v3" # local
-  # Model for Groq API transcription
-  groq_model: whisper-large-v3-turbo #"distil-whisper-large-v3-en"
-
-# LLM (Large Language Model) Settings
-llm:
-  # Backend: "groq" (using Groq API)
-  backend: "groq"
-  # Model name for Groq API (common models: llama3-8b-8192, llama3-70b-8192, gemma-7b-it)
-  model: "openai/gpt-oss-120b"
-  
-  # Enhancement settings
-  enhancer:
-    # Enable transcript enhancement (grammar, punctuation, capitalization)
-    enabled: true
-    # Temperature for enhancement (0.0-1.0, lower = more deterministic)
-    temperature: 0.1
-  
-  # Translation settings
-  translator:
-    # Enable translation
-    enabled: true
-    # Target language for translation (e.g., "Spanish", "French", "German", "Chinese")
-    target_language: "urdu"
-    # Temperature for translation (0.0-1.0, slightly higher for more natural translations)
-    temperature: 0.1
-
-# Subtitle Settings
-subtitles:
-  # Mode: "soft" (embedded subtitles) or "burn" (burned-in subtitles)
-  mode: "burn"
-  # Box opacity for burned subtitles (0.0-1.0)
-  box_opacity: 0.6
-
-# API Settings
-api:
-  # Groq API key (will also check environment variable GROQ_API_KEY)
-  groq_api_key: ""
 
 # Processing Settings
 processing:
@@ -74,8 +31,55 @@ processing:
       stem_type: "vocals"
       # Output format for separated audio files
       output_format: "WAV"
-      # Whether to use separated vocals for transcription (true) or original audio (false)
-      use_separated_for_transcription: true
+
+
+# ASR (Automatic Speech Recognition) Settings
+asr:
+  # Backend: "local" (faster-whisper) or "groq" (Groq API)
+  backend: "local"  # Changed default to groq since user is using it
+  # Model for local transcription (base, small, medium, large, large-v2, large-v3)
+  whisper_model: "large-v3" # local
+  # Model for Groq API transcription
+  groq_model: whisper-large-v3-turbo #"distil-whisper-large-v3-en"
+
+
+# LLM (Large Language Model) Settings
+llm:
+  # Backend: "groq" (using Groq API)
+  backend: "groq"
+  # Model name for Groq API (common models: llama3-8b-8192, llama3-70b-8192, gemma-7b-it)
+  model: "openai/gpt-oss-120b"
+  
+  # Enhancement settings
+  enhancer:
+    # Enable transcript enhancement (grammar, punctuation, capitalization)
+    enabled: true
+    # Temperature for enhancement (0.0-1.0, lower = more deterministic)
+    temperature: 0.1
+  
+  # Translation settings
+  translator:
+    # Enable translation
+    enabled: false
+    # Target language for translation (e.g., "Spanish", "French", "German", "Chinese")
+    target_language: "urdu"
+    # Temperature for translation (0.0-1.0, slightly higher for more natural translations)
+    temperature: 0.1
+
+# Subtitle Settings
+subtitles:
+  # Mode: "soft" (embedded subtitles) or "burn" (burned-in subtitles)
+  mode: "burn"
+  # Box opacity for burned subtitles (0.0-1.0)
+  box_opacity: 0.6
+
+# API Settings
+api:
+  # Groq API key (will also check environment variable GROQ_API_KEY)
+  groq_api_key: ""
+
+
+
   
   # Output directories (relative to video_id working directory)
   output:
