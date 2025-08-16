@@ -45,7 +45,40 @@ pip install -r groq_requirements.txt
 pip install -r requirements.txt
 ```
 
-### 3. Configuration
+### 3. Install Audio Separator (Optional)
+
+If you need audio separation capabilities (e.g., for separating vocals from instrumental tracks), install the audio-separator package:
+
+```bash
+# Install audio-separator with GPU support
+pip install "audio-separator[gpu]"
+```
+
+**Troubleshooting Audio Separator Installation:**
+
+If you encounter build errors like:
+```
+fatal error: Python.h: No such file or directory. I was getting `  ERROR: Failed building wheel for diffq`
+```
+
+This is a common issue on Ubuntu/Debian systems. Fix it by installing Python development headers:
+
+```bash
+# Update package list
+sudo apt update
+
+# Install Python development headers and build tools
+sudo apt install python3.12-dev build-essential
+```
+
+After installing these packages, try installing audio-separator again:
+```bash
+pip install "audio-separator[gpu]"
+```
+
+**Note:** Replace `python3.12-dev` with your specific Python version if different (e.g., `python3.11-dev` for Python 3.11).
+
+### 4. Configuration
 
 Copy and edit the configuration file:
 ```bash

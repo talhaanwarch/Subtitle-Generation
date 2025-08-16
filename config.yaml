@@ -60,10 +60,27 @@ processing:
   audio:
     sample_rate: 16000
     mono: true
+    
+    # Audio separation settings
+    separation:
+      # Enable audio separation to isolate vocals from music
+      enabled: true
+      # Model to use for separation (can be model name or filename)
+      # Examples: "Roformer Model: BS-Roformer-Viperx-1297", "MDX-Net Model: UVR-MDX-NET Main", "Demucs v4: htdemucs_6s"
+      model: "Roformer Model: BS-Roformer-Viperx-1297"
+      # Whether to automatically select the best model for vocals (overrides model setting)
+      auto_select_best: false
+      # Stem type to separate (vocals, drums, bass, etc.)
+      stem_type: "vocals"
+      # Output format for separated audio files
+      output_format: "WAV"
+      # Whether to use separated vocals for transcription (true) or original audio (false)
+      use_separated_for_transcription: true
   
   # Output directories (relative to video_id working directory)
   output:
     audio_dir: "audio"
+    separated_dir: "separated"
     transcripts_dir: "transcripts"
     enhanced_dir: "enhanced"
     translated_dir: "translated"

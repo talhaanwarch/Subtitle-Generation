@@ -72,3 +72,5 @@ typing_extensions==4.12.2
 urllib3==2.5.0
 wheel==0.45.1
 yt-dlp==2025.8.11
+"audio-separator[gpu]"
+

@@ -66,10 +66,22 @@ class APIConfig:
 
 
 @dataclass
+class AudioSeparationConfig:
+    """Audio separation configuration."""
+    enabled: bool = False
+    model: str = "Roformer Model: BS-Roformer-Viperx-1297"  # Model name or filename
+    auto_select_best: bool = False
+    stem_type: str = "vocals"
+    output_format: str = "WAV"
+    use_separated_for_transcription: bool = True
+
+
+@dataclass
 class AudioConfig:
     """Audio extraction configuration."""
     sample_rate: int = 16000
     mono: bool = True
+    separation: AudioSeparationConfig = field(default_factory=AudioSeparationConfig)
 
 
 # Remove old EnhancementConfig as it's now part of LLMConfig
@@ -79,6 +91,7 @@ class AudioConfig:
 class OutputConfig:
     """Output directory configuration."""
     audio_dir: str = "audio"
+    separated_dir: str = "separated"
     transcripts_dir: str = "transcripts"
     enhanced_dir: str = "enhanced"
     translated_dir: str = "translated"
@@ -232,7 +245,11 @@ def load_config(config_path: Optional[Union[str, Path]] = None) -> Config:
             # Handle nested processing config
             processing_kwargs = {}
             if "audio" in section_data:
-                processing_kwargs["audio"] = _nested_dict_to_dataclass(AudioConfig, section_data["audio"])
+                # Handle nested audio config with separation
+                audio_kwargs = {k: v for k, v in section_data["audio"].items() if k != "separation"}
+                if "separation" in section_data["audio"]:
+                    audio_kwargs["separation"] = _nested_dict_to_dataclass(AudioSeparationConfig, section_data["audio"]["separation"])
+                processing_kwargs["audio"] = AudioConfig(**audio_kwargs)
             if "output" in section_data:
                 processing_kwargs["output"] = _nested_dict_to_dataclass(OutputConfig, section_data["output"])
             config_kwargs[section_name] = ProcessingConfig(**processing_kwargs)

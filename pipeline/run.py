@@ -68,17 +68,56 @@ def run_pipeline_with_config(config: Config) -> Dict[str, Any]:
         mono=config.processing.audio.mono
     )
 
+    # 2.5) Audio separation (optional)
+    transcription_audio_path = audio_path  # Default to original audio
+    separation_results = {}
+    
+    if config.processing.audio.separation.enabled:
+        logger.info("=====Separating audio (vocals from music)=====")
+        try:
+            from separator.separate_audio import separate_audio_file, check_audio_separator_availability
+            
+            if not check_audio_separator_availability():
+                logger.warning("Audio separator not available. Install with: pip install audio-separator[cpu] or audio-separator[gpu]")
+                logger.warning("Continuing with original audio for transcription")
+            else:
+                # Perform audio separation
+                separation_output_dir = work.separated_dir
+                separation_results = separate_audio_file(
+                    audio_path=audio_path,
+                    output_dir=separation_output_dir,
+                    model_name=config.processing.audio.separation.model,
+                    output_format=config.processing.audio.separation.output_format,
+                    sample_rate=config.processing.audio.sample_rate,
+                    auto_select_best=config.processing.audio.separation.auto_select_best,
+                    stem_type=config.processing.audio.separation.stem_type
+                )
+                
+                # Use separated vocals for transcription if configured
+                if (config.processing.audio.separation.use_separated_for_transcription and 
+                    "vocals" in separation_results):
+                    transcription_audio_path = separation_results["vocals"]
+                    logger.info(f"Using separated vocals for transcription: {transcription_audio_path}")
+                else:
+                    logger.info("Using original audio for transcription")
+                    
+        except Exception as e:
+            logger.error(f"Audio separation failed: {e}")
+            logger.warning("Continuing with original audio for transcription")
+    else:
+        logger.info("Audio separation disabled, using original audio for transcription")
+
     # 3) Transcribe
     if config.asr.backend == "local":
         from transcriber.transcribe_local import transcribe_with_whisper
-        asr_json = transcribe_with_whisper(audio_path, config)
+        asr_json = transcribe_with_whisper(transcription_audio_path, config)
         asr_json_path = os.path.join(work.transcripts_dir, "asr_local.json")
 
         write_json(asr_json_path, asr_json)
         write_srt(os.path.join(work.transcripts_dir, "asr_local.srt"), asr_json["segments"])
     elif config.asr.backend == "groq":
         from transcriber.transcribe_groq import transcribe_with_groq
-        asr_json = transcribe_with_groq(audio_path, config)
+        asr_json = transcribe_with_groq(transcription_audio_path, config)
         asr_json_path = os.path.join(work.transcripts_dir, "asr_groq.json")
         write_json(asr_json_path, asr_json)
         write_srt(os.path.join(work.transcripts_dir, "asr_groq.srt"), asr_json["segments"])
@@ -148,11 +187,19 @@ def run_pipeline_with_config(config: Config) -> Dict[str, Any]:
         "video_id": video_id,
         "video": video_path,
         "audio": audio_path,
+        "transcription_audio": transcription_audio_path,
         "asr_json": asr_json_path,
         "enhanced_json": enhanced_json_path,
         "enhanced_srt": enhanced_srt_path,
         "final_video": final_video,
     }
+    
+    # Add separation info if separation was performed
+    if config.processing.audio.separation.enabled and separation_results:
+        result.update({
+            "separation_results": separation_results,
+            "separation_output_dir": work.separated_dir,
+        })
     
     # Add translation info if translation was performed
     if translation_enabled and target_language:
@@ -194,14 +241,52 @@ def run_pipeline(url: str, asr_backend: str = "local", whisper_model: str = "bas
 		write_json(metadata_path, {"video_id": video_id, "title": title})
 
 	# 2) Extract audio
-	logger.info("2. Transcibing to audio....")
+	logger.info("2. Extracting audio....")
 	audio_path = os.path.join(work.audio_dir, "audio.wav")
 	extract_audio(video_path, audio_path, sample_rate_hz=16000, mono=True)
+
+	# 2.5) Audio separation (optional) - using default settings for legacy mode
+	transcription_audio_path = audio_path  # Default to original audio
+	separation_results = {}
+	
+	# Check if audio separation is enabled via environment variable
+	separation_enabled = os.environ.get("ENABLE_AUDIO_SEPARATION", "false").lower() == "true"
+	if separation_enabled:
+		logger.info("2.5. Separating audio (vocals from music)....")
+		try:
+			from separator.separate_audio import separate_audio_file, check_audio_separator_availability
+			
+			if not check_audio_separator_availability():
+				logger.warning("Audio separator not available. Install with: pip install audio-separator[cpu] or audio-separator[gpu]")
+				logger.warning("Continuing with original audio for transcription")
+			else:
+				# Perform audio separation with default settings
+				separation_output_dir = work.separated_dir
+				separation_results = separate_audio_file(
+					audio_path=audio_path,
+					output_dir=separation_output_dir,
+					model_name="Roformer Model: BS-Roformer-Viperx-1297",
+					output_format="WAV",
+					sample_rate=16000,
+				)
+				
+				# Use separated vocals for transcription
+				if "vocals" in separation_results:
+					transcription_audio_path = separation_results["vocals"]
+					logger.info(f"Using separated vocals for transcription: {transcription_audio_path}")
+				else:
+					logger.info("Using original audio for transcription")
+					
+		except Exception as e:
+			logger.error(f"Audio separation failed: {e}")
+			logger.warning("Continuing with original audio for transcription")
+	else:
+		logger.info("Audio separation disabled, using original audio for transcription")
 
 	# 3) Transcribe
 	if asr_backend == "local":
 		from transcriber.transcribe_local import transcribe_with_whisper
-		asr_json = transcribe_with_whisper(audio_path, whisper_model, input_language)
+		asr_json = transcribe_with_whisper(transcription_audio_path, whisper_model, input_language)
 		asr_json_path = os.path.join(work.transcripts_dir, "asr_local.json")
 		write_json(asr_json_path, asr_json)
 		write_srt(os.path.join(work.transcripts_dir, "asr_local.srt"), asr_json["segments"])
@@ -212,7 +297,7 @@ def run_pipeline(url: str, asr_backend: str = "local", whisper_model: str = "bas
 		temp_config = Config()
 		temp_config.asr.groq_model = os.environ.get("ASR_MODEL_NAME", "distil-whisper-large-v3-en")
 		temp_config.api.groq_api_key = os.environ.get("GROQ_API_KEY", "")
-		asr_json = transcribe_with_groq(audio_path, temp_config)
+		asr_json = transcribe_with_groq(transcription_audio_path, temp_config)
 		asr_json_path = os.path.join(work.transcripts_dir, "asr_groq.json")
 		write_json(asr_json_path, asr_json)
 		write_srt(os.path.join(work.transcripts_dir, "asr_groq.srt"), asr_json["segments"])
@@ -270,11 +355,19 @@ def run_pipeline(url: str, asr_backend: str = "local", whisper_model: str = "bas
 		"video_id": video_id,
 		"video": video_path,
 		"audio": audio_path,
+		"transcription_audio": transcription_audio_path,
 		"asr_json": asr_json_path,
 		"enhanced_json": enhanced_json_path,
 		"enhanced_srt": enhanced_srt_path,
 		"final_video": final_video,
 	}
+	
+	# Add separation info if separation was performed
+	if separation_enabled and separation_results:
+		result.update({
+			"separation_results": separation_results,
+			"separation_output_dir": work.separated_dir,
+		})
 	
 	# Add translation info if translation was performed
 	if target_lang:
