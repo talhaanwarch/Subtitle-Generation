@@ -176,6 +176,9 @@ def run_pipeline_with_config(config: Config) -> Dict[str, Any]:
         enhanced_segments = asr_json["segments"]
         segments_for_next_step = asr_json["segments"]
         srt_for_next_step = asr_srt_path  # Use original ASR SRT
+        # Initialize enhancement paths as None since enhancement is disabled
+        enhanced_json_path = None
+        enhanced_srt_path = None
         logger.info("NEXT STEP WILL USE: ASR segments (unenhanced)")
 
     # 5) Translate transcript (optional)

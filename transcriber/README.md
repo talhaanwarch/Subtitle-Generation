@@ -16,6 +16,11 @@ python transcriber/transcribe_local.py \
   --model base
 ```
 
+### Example
+```bash
+python transcriber/transcribe_local.py --audio outputs/84q5krIwQTc/audio/audio.wav --video-id 84q5krIwQTc
+```
+
 ## Usage (OpenAI)
 
 ```bash
